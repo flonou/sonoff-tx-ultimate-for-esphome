@@ -1,0 +1,1154 @@
+substitutions:
+  name: "sonoff-tx-3"
+  friendly_name: "Sonoff TX-3"
+
+  max_vibra_time: 500ms
+  button_on_time: 500ms
+
+  button_brightness: "0.7"
+  button_color: "{0,0,100}"
+
+  latitude: "51.132241°"
+  longitude: "7.178795°"
+
+  touch_brightness: "1"
+  touch_color: "{0,100,100}"
+  touch_effect: "Scan"
+
+  boot_brightness: "0.7"
+  boot_color1: "{100,0,0}"
+  boot_color2: "{100,100,0}"
+  boot_effect: "Scan"
+
+  long_press_brightness: "1"
+  long_press_color: "{100,0,0}"
+  long_press_effect: ""
+
+  multi_touch_brightness: "1"
+  multi_touch_color: "{0,0,0}"
+  multi_touch_effect: "Rainbow"
+
+  swipe_left_brightness: "1"
+  swipe_left_color: "{0,100,0}"
+  swipe_left_effect: "Pulse"
+
+  swipe_right_brightness: "1"
+  swipe_right_color: "{100,0,70}"
+  swipe_right_effect: "Pulse"
+
+  relay_1_pin: GPIO18
+  relay_2_pin: GPIO17
+  relay_3_pin: GPIO27
+  relay_4_pin: GPIO23
+
+  vibra_motor_pin: GPIO21
+  pa_power_pin: GPIO26
+
+  led_pin: GPIO13
+  status_led_pin: GPIO33
+
+  uart_tx_pin: GPIO19
+  uart_rx_pin: GPIO22
+
+  audio_lrclk_pin: GPIO4
+  audio_bclk_pin: GPIO2
+  audio_sdata_pin: GPIO15
+
+  touchpanel_power_pin: GPIO5
+
+  long_press_time: 500ms
+  long_press_discard_time: 2000ms
+  double_click_max_interval: 350ms
+
+  wipe_r: 60%
+  wipe_g: 0%
+  wipe_b: 60%
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+
+  on_boot:
+    priority: 700 #-100
+    then:
+      - light.turn_on:
+          id: leds_top
+          brightness: ${boot_brightness}
+          red: !lambda "return id(boot_color1)[0]/100.0;"
+          green: !lambda "return id(boot_color1)[1]/100.0;"
+          blue: !lambda "return id(boot_color1)[2]/100.0;"
+          effect: ${boot_effect}
+      - wait_until:
+          condition:
+            wifi.connected:
+          timeout: 1min
+
+      - light.turn_on:
+          id: leds_top
+          brightness: ${boot_brightness}
+          red: !lambda "return id(boot_color2)[0]/100.0;"
+          green: !lambda "return id(boot_color2)[1]/100.0;"
+          blue: !lambda "return id(boot_color2)[2]/100.0;"
+          effect: ${boot_effect}
+
+      - script.execute: release_all_fields
+
+      - binary_sensor.template.publish:
+          id: multi_touch
+          state: OFF
+      - binary_sensor.template.publish:
+          id: swipe_left
+          state: OFF
+      - binary_sensor.template.publish:
+          id: swipe_right
+          state: OFF
+#      - binary_sensor.template.publish:
+#          id: long_press
+#          state: OFF
+      - script.execute: refresh_led_default
+      - logger.log: "connected !"
+      - delay: 1s
+      - logger.log: "turning top led off..."
+      - light.turn_off:
+          id: leds_top
+
+# Enable logging
+logger:
+  #  hardware_uart: UART2
+  level: INFO
+  logs:
+    binary_sensor: INFO
+    light: INFO
+    script: INFO
+    switch: INFO
+    tx_ultimate_touch: INFO
+    uart_debug: INFO
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "zEDbgCpgImARmQl51dwGBXQ7HiH0OpY6hZxBupfQmi0="
+
+ota:
+  password: "f102e3cac4d64c833389390892cf8dc9"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "sonoff-tx-3 Fallback Hotspot"
+    password: "VKEgaMZfEt79"
+
+captive_portal:
+    
+improv_serial:
+
+external_components:
+  - source: /config/sonoff-tx
+#  - source:
+#      type: git
+#      url: https://github.com/SmartHome-yourself/sonoff-tx-ultimate-for-esphome
+#      ref: main
+    components: [tx_ultimate_touch]
+    
+
+globals:
+  - id: button_color
+    type: int [3]
+    restore_value: no
+    initial_value: ${button_color}
+  - id: long_press_color
+    type: int [3]
+    restore_value: no
+    initial_value: ${long_press_color}
+  - id: multi_touch_color
+    type: int [3]
+    restore_value: no
+    initial_value: ${multi_touch_color}
+  - id: swipe_left_color
+    type: int [3]
+    restore_value: no
+    initial_value: ${swipe_left_color}
+  - id: swipe_right_color
+    type: int [3]
+    restore_value: no
+    initial_value: ${swipe_right_color}
+  - id: touch_color
+    type: int [3]
+    restore_value: no
+    initial_value: ${touch_color}
+  - id: boot_color1
+    type: int [3]
+    restore_value: no
+    initial_value: ${boot_color1}
+  - id: boot_color2
+    type: int [3]
+    restore_value: no
+    initial_value: ${boot_color2}
+
+event:
+  - platform: template
+    id: TX_events_left
+    name: Left Button
+    event_types:
+      - press
+      - release
+      - long_press
+      - long_press_release
+      - double_press
+  - platform: template
+    id: TX_events_middle
+    name: Middle Button
+    event_types:
+      - press
+      - release
+      - long_press
+      - long_press_release
+      - double_press
+  - platform: template
+    id: TX_events_right
+    name: Right Button
+    event_types:
+      - press
+      - release
+      - long_press
+      - long_press_release
+      - double_press
+
+binary_sensor:
+  - platform: template
+    name: "Touchfield 1"
+    id: touchfield_1
+    on_multi_click:
+    - timing:
+      - ON for at most $long_press_time
+      - OFF for at least $double_click_max_interval
+      then:
+        - logger.log: "press left"
+        - script.execute: 
+            id: led_flash_button_left
+            brightness: 0.7
+            r: 0
+            g: 0
+            b: 1
+        - script.execute:
+            id: vibrate
+            duration: 150
+        - event.trigger:
+            id: TX_events_left
+            event_type: press
+    - timing:
+      - ON for at most $long_press_time
+      - OFF for at least $double_click_max_interval
+      then:
+        - logger.log: "Release left"
+        - event.trigger:
+            id: TX_events_left
+            event_type: release
+    - timing:
+      - ON for at least $long_press_time
+      then:
+        - logger.log: "long press left"
+        - script.execute: 
+            id: led_flash_button_left
+            brightness: 0.7
+            r: 0
+            g: 1
+            b: 0
+        - script.execute:
+            id: vibrate
+            duration: 500
+        - event.trigger:
+            id: TX_events_left
+            event_type: long_press   
+    - timing:
+      - ON for at least $long_press_time
+      - OFF for at least 0ms
+      then:
+        - logger.log: "long press release left"
+        - event.trigger:
+            id: TX_events_left
+            event_type: long_press_release
+    on_double_click:
+      then:
+        - logger.log: "Double Click left"
+        - event.trigger:
+            id: TX_events_left
+            event_type: double_press
+        - switch.toggle: relay_1
+        - script.execute: 
+            id: led_flash_button_left
+            brightness: 0.7
+            r: 1
+            g: 1
+            b: 0
+        - script.execute:
+            id: vibrate
+            duration: 150
+        - delay: 200ms
+        - script.execute:
+            id: vibrate
+            duration: 150
+    on_press:
+      - logger.log: "on press left"
+      - script.execute: 
+          id: led_on_button_left
+          brightness: 0.3
+          r: 0
+          g: 0
+          b: 1
+#    on_release:
+#      - logger.log: "on release left"
+
+
+  - platform: template
+    name: "Touchfield 2"
+    id: touchfield_2
+    on_multi_click:
+    - timing:
+      - ON for at most $long_press_time
+      - OFF for at least $double_click_max_interval
+      then:
+        - logger.log: "press middle"
+        - script.execute: 
+            id: led_flash_button_middle
+            brightness: 0.7
+            r: 0
+            g: 0
+            b: 1
+        - script.execute:
+            id: vibrate
+            duration: 150
+        - event.trigger:
+            id: TX_events_middle
+            event_type: press
+    - timing:
+      - ON for at most $long_press_time
+      - OFF for at least $double_click_max_interval
+      then:
+        - logger.log: "Release middle"
+        - event.trigger:
+            id: TX_events_middle
+            event_type: release
+    - timing:
+      - ON for at least $long_press_time
+      then:
+        - logger.log: "long press middle"
+        - script.execute: 
+            id: led_flash_button_middle
+            brightness: 0.7
+            r: 0
+            g: 1
+            b: 0
+        - script.execute:
+            id: vibrate
+            duration: 500
+        - event.trigger:
+            id: TX_events_middle
+            event_type: long_press   
+    on_click:
+      min_length: $long_press_time
+      max_length: $long_press_discard_time
+      then:
+        - logger.log: "long press release middle"
+        - event.trigger:
+            id: TX_events_middle
+            event_type: long_press_release
+    on_double_click:
+      then:
+        - logger.log: "Double Click middle"
+        - event.trigger:
+            id: TX_events_middle
+            event_type: double_press
+        - switch.toggle: relay_2
+        - script.execute: 
+            id: led_flash_button_middle
+            brightness: 0.7
+            r: 1
+            g: 1
+            b: 0
+        - script.execute:
+            id: vibrate
+            duration: 150
+        - delay: 200ms
+        - script.execute:
+            id: vibrate
+            duration: 150
+    on_press:
+      - logger.log: "on press middle"
+      - script.execute: 
+          id: led_on_button_middle
+          brightness: 0.3
+          r: 0
+          g: 0
+          b: 1
+#    on_release:
+#      - logger.log: "on release left"
+
+  - platform: template
+    name: "Touchfield 3"
+    id: touchfield_3
+    on_multi_click:
+    - timing:
+      - ON for at most $long_press_time
+      - OFF for at least $double_click_max_interval
+      then:
+        - logger.log: "press right"
+        - script.execute: 
+            id: led_flash_button_right
+            brightness: 0.7
+            r: 0
+            g: 0
+            b: 1
+        - script.execute:
+            id: vibrate
+            duration: 150
+        - event.trigger:
+            id: TX_events_right
+            event_type: press
+    - timing:
+      - ON for at most $long_press_time
+      - OFF for at least $double_click_max_interval
+      then:
+        - logger.log: "Release right"
+        - event.trigger:
+            id: TX_events_right
+            event_type: release
+    - timing:
+      - ON for at least $long_press_time
+      then:
+        - logger.log: "long press right"
+        - script.execute: 
+            id: led_flash_button_right
+            brightness: 0.7
+            r: 0
+            g: 1
+            b: 0
+        - script.execute:
+            id: vibrate
+            duration: 500
+        - event.trigger:
+            id: TX_events_right
+            event_type: long_press   
+    on_click:
+      min_length: $long_press_time
+      max_length: $long_press_discard_time
+      then:
+        - logger.log: "long press release right"
+        - event.trigger:
+            id: TX_events_right
+            event_type: long_press_release
+    on_double_click:
+      then:
+        - logger.log: "Double Click right"
+        - event.trigger:
+            id: TX_events_right
+            event_type: double_press
+        - switch.toggle: relay_3
+        - script.execute: 
+            id: led_flash_button_right
+            brightness: 0.7
+            r: 1
+            g: 1
+            b: 0
+        - script.execute:
+            id: vibrate
+            duration: 150
+        - delay: 200ms
+        - script.execute:
+            id: vibrate
+            duration: 150
+    on_press:
+      - logger.log: "on press right"
+      - script.execute: 
+          id: led_on_button_right
+          brightness: 0.3
+          r: 0
+          g: 0
+          b: 1
+#    on_release:
+#      - logger.log: "on release left"
+
+
+  - platform: template
+    name: "Swipe left"
+    id: swipe_left
+    on_press:
+      - delay: ${button_on_time}
+      - binary_sensor.template.publish:
+          id: swipe_left
+          state: OFF
+      - script.execute: refresh_led_default
+
+  - platform: template
+    name: "Swipe_right"
+    id: swipe_right
+    on_press:
+      - delay: ${button_on_time}
+      - binary_sensor.template.publish:
+          id: swipe_right
+          state: OFF
+      - script.execute: refresh_led_default
+
+  - platform: template
+    name: "Multi Touch"
+    id: multi_touch
+    on_press:
+      - delay: ${button_on_time}
+      - binary_sensor.template.publish:
+          id: multi_touch
+          state: OFF
+      - script.execute: refresh_led_default
+
+ # - platform: template
+#    name: "Long Press"
+#    id: long_press
+#    on_press:
+#      - delay: ${button_on_time}
+#      - binary_sensor.template.publish:
+#          id: long_press
+#          state: OFF
+#      - script.execute: refresh_led_default
+
+switch:
+  - platform: gpio
+    id: relay_1
+    name: "${friendly_name} L1"
+    pin: ${relay_1_pin}
+    restore_mode: RESTORE_DEFAULT_ON
+    on_turn_on:
+      then:
+        - script.execute: refresh_led_default
+    on_turn_off:
+      then:
+        - script.execute: refresh_led_default
+
+  - platform: gpio
+    id: relay_2
+    name: "${friendly_name} L2"
+    pin: ${relay_2_pin}
+    restore_mode: RESTORE_DEFAULT_ON
+    on_turn_on:
+      then:
+        - script.execute: refresh_led_default
+    on_turn_off:
+      then:
+        - script.execute: refresh_led_default
+
+  - platform: gpio
+    id: relay_3
+    name: "${friendly_name} L3"
+    pin: ${relay_3_pin}
+    restore_mode: RESTORE_DEFAULT_ON
+    on_turn_on:
+      then:
+        - script.execute: refresh_led_default
+    on_turn_off:
+      then:
+        - script.execute: refresh_led_default
+
+  - platform: gpio
+    id: vibra
+    pin: ${vibra_motor_pin}
+    name: "${friendly_name} Vibration"
+    restore_mode: ALWAYS_OFF
+    #on_turn_on:
+      #- delay: ${max_vibra_time}
+      #- switch.turn_off: vibra
+
+  - platform: gpio
+    id: pa_power
+    pin: ${pa_power_pin}
+    name: "PA Power"
+    internal: true
+    restore_mode: ALWAYS_ON
+
+  - platform: gpio
+    name: "touch panel power"
+    pin:
+      number: ${touchpanel_power_pin}
+      inverted: true
+    id: touch_power
+    internal: true
+    restore_mode: RESTORE_DEFAULT_ON
+
+  - platform: restart
+    name: "${friendly_name} Restart"
+
+#output:
+  #- platform: ledc
+    #pin: ${vibra_motor_pin}
+    #id: pwm_vibra
+
+light:
+  - platform: neopixelbus
+    type: GRB
+    variant: WS2811
+    pin: ${led_pin}
+    num_leds: 28
+    internal: true
+    name: "NeoPixel Light"
+    id: leds
+    default_transition_length: 0s
+
+  - platform: partition
+    name: "All Lights"
+    id: leds_all
+    segments:
+      - id: leds
+        from: 0
+        to: 27
+    effects:
+      - addressable_rainbow:
+          name: "Rainbow"
+          speed: 30
+          width: 8
+
+    on_turn_off:
+      then:
+        - script.execute: refresh_led_default
+
+  - platform: partition
+    name: "LEDs Button right"
+    id: leds_button_right
+    internal: true
+    segments:
+      - id: leds
+        from: 6
+        to: 7
+  - platform: partition
+    name: "LEDs Button middle"
+    id: leds_button_middle
+    internal: true
+    segments:
+      - id: leds
+        from: 8
+        to: 10
+  - platform: partition
+    name: "LEDs Button left"
+    id: leds_button_left
+    internal: true
+    segments:
+      - id: leds
+        from: 11
+        to: 12
+
+  - platform: partition
+    name: "LEDs Top Right"
+    id: leds_button_right_top
+    segments:
+      - id: leds
+        from: 25
+        to: 26
+    effects:
+      - addressable_scan:
+          name: "Scan"
+          scan_width: 1
+          move_interval: 500ms
+      - pulse:
+          name: "Pulse"
+          min_brightness: 30%
+          transition_length:
+            on_length: 2s
+            off_length: 1s
+          update_interval: 3s
+
+  - platform: partition
+    name: "LEDs Top Middle"
+    id: leds_button_middle_top
+    segments:
+      - id: leds
+        from: 22
+        to: 24
+    effects:
+      - addressable_scan:
+          name: "Scan"
+          scan_width: 2
+          move_interval: 500ms
+      - pulse:
+          name: "Pulse"
+          min_brightness: 30%
+          transition_length:
+            on_length: 2s
+            off_length: 1s
+          update_interval: 3s
+
+  - platform: partition
+    name: "LEDs Top Left"
+    id: leds_button_left_top
+    segments:
+      - id: leds
+        from: 20
+        to: 21
+    effects:
+      - addressable_scan:
+          name: "Scan"
+          scan_width: 1
+          move_interval: 500ms
+      - pulse:
+          name: "Pulse"
+          min_brightness: 30%
+          transition_length:
+            on_length: 2s
+            off_length: 1s
+          update_interval: 3s
+
+  - platform: partition
+    name: "LEDs Top"
+    id: leds_top
+    internal: true
+    segments:
+      - id: leds
+        from: 20
+        to: 26
+    effects:
+      - addressable_scan:
+          name: "Scan"
+          scan_width: 3
+      - addressable_rainbow:
+          name: "Rainbow"
+          speed: 10
+          width: 20
+
+  - platform: partition
+    name: "LEDs Left"
+    id: leds_left
+    segments:
+      - id: leds
+        from: 13
+        to: 19
+    effects:
+      - addressable_scan:
+          name: "Scan"
+          scan_width: 3
+      - addressable_color_wipe:
+          name: Color Wipe Up
+          colors:
+            - red: $wipe_r
+              green: $wipe_g
+              blue: $wipe_b
+              num_leds: 6
+              gradient: true
+            - red: 0%
+              green: 0%
+              blue: 0%
+              num_leds: 1
+          add_led_interval: 100ms
+          reverse: false
+      - addressable_color_wipe:
+          name: Color Wipe Down
+          colors:
+            - red: $wipe_r
+              green: $wipe_g
+              blue: $wipe_b
+              num_leds: 6
+              gradient: true
+            - red: 0%
+              green: 0%
+              blue: 0%
+              num_leds: 1
+          add_led_interval: 100ms
+          reverse: true
+      - pulse:
+          name: "Pulse"
+          transition_length: 600ms
+          update_interval: 300ms
+
+  - platform: partition
+    name: "LEDs Right"
+    id: leds_right
+    segments:
+      - id: leds
+        from: 0
+        to: 5
+        reversed: true
+      - id: leds
+        from: 27
+        to: 27
+    effects:
+      - addressable_scan:
+          name: "Scan"
+      - pulse:
+          name: "Pulse"
+          transition_length: 600ms
+          update_interval: 300ms
+
+sensor:
+  - platform: template
+    name: "Touch Position"
+    id: touch_position
+
+
+media_player:
+  - platform: i2s_audio
+    id: media_out
+    name: ${friendly_name} Player
+    dac_type: external
+    i2s_dout_pin: ${audio_sdata_pin}
+    i2s_audio_id: audio_i2s
+    i2s_comm_fmt: lsb
+    mode: mono
+
+i2s_audio:
+  id: audio_i2s
+  i2s_lrclk_pin: ${audio_lrclk_pin}
+  i2s_bclk_pin: ${audio_bclk_pin}
+
+uart:
+  tx_pin: ${uart_tx_pin}
+  rx_pin: ${uart_rx_pin}
+  id: my_uart
+  baud_rate: 115200
+  data_bits: 8
+  stop_bits: 1
+  parity: NONE
+  debug:
+    direction: RX
+    dummy_receiver: false
+    after:
+      timeout: 2s
+      bytes: 2048
+    sequence:
+      - lambda: UARTDebug::log_hex(direction, bytes, ' ');
+
+tx_ultimate_touch:
+  id: tx_touch
+  uart: my_uart
+
+  on_press:
+    - sensor.template.publish:
+        id: touch_position
+        state: !lambda 'return touch.x;'
+
+    #- switch.turn_on: vibra
+
+    - script.execute:
+        id: handle_press
+        pos: !lambda "return touch.x;"
+
+    - lambda: >
+        ESP_LOGD("tx_ultimate_touch.on_press", "Touch Position: %d / State: %d", touch.x, touch.state);
+
+  on_release:
+    - sensor.template.publish:
+        id: touch_position
+        state: 0
+
+    - script.execute:
+        id: release_all_fields
+        pos: !lambda "return touch.x;"
+
+    - lambda: >
+        ESP_LOGD("tx_ultimate_touch.on_release", "Release Position: %d / State: %d", touch.x, touch.state);
+
+  on_swipe_left:
+    - script.execute: led_on_swipe_left
+
+    #- switch.turn_on: vibra
+
+    - binary_sensor.template.publish:
+        id: swipe_left
+        state: ON
+
+    - lambda: >
+        ESP_LOGD("tx_ultimate_touch.on_swipe_left", "Swipe Left Position: %d / State: %d", touch.x, touch.state);
+
+  on_swipe_right:
+    - script.execute: led_on_swipe_right
+
+    #- switch.turn_on: vibra
+
+    - binary_sensor.template.publish:
+        id: swipe_right
+        state: ON
+
+    - lambda: >
+        ESP_LOGD("tx_ultimate_touch.on_swipe_right", "Swipe Right Position: %d / State: %d", touch.x, touch.state);
+
+  on_full_touch_release:
+    - script.execute: led_on_full_touch
+
+    #- switch.turn_on: vibra
+
+    - binary_sensor.template.publish:
+        id: multi_touch
+        state: ON
+
+    - lambda: >
+        ESP_LOGD("tx_ultimate_touch.on_full_touch_release", "Full Touch Release Position: %d / State: %d", touch.x, touch.state);
+
+#  on_long_touch_release:
+#    - script.execute: led_on_long_touch
+
+#    - switch.turn_on: vibra
+
+#    - binary_sensor.template.publish:
+#        id: long_press
+#        state: ON
+
+#    - lambda: >
+#        ESP_LOGD("tx_ultimate_touch.on_long_touch_release", "Long Touch Release Position: %d / State: %d", touch.x, touch.state);
+
+
+script:
+
+  - id: vibrate
+    mode: restart
+    parameters:
+      duration: int
+    then:
+      - switch.turn_on: vibra
+      - delay: !lambda return duration;
+      - switch.turn_off: vibra
+
+  - id: refresh_led_default
+    mode: restart
+    then:
+      - script.execute: led_off_button_left
+      - script.execute: led_off_button_middle
+      - script.execute: led_off_button_right
+  
+  - id: led_on_button_left
+    mode: restart
+    parameters:
+      brightness: float
+      r: float
+      g: float
+      b: float
+    then:    
+      - light.turn_on:
+          transition_length: 0ms
+          id: leds_button_left
+          brightness: !lambda return brightness;
+          red: !lambda return r;
+          green: !lambda return g;
+          blue: !lambda return b;
+      - logger.log:
+          format: "Color is %f %f %f - %f"
+          args: [ "r","g","b", "brightness" ]      
+
+  - id: led_flash_button_left
+    mode: restart
+    parameters:
+      brightness: float
+      r: float
+      g: float
+      b: float
+    then:
+      - logger.log: "Will set light on"
+      - script.execute:
+          id: led_on_button_left
+          brightness: !lambda return brightness;
+          r: !lambda return r;
+          g: !lambda return g;
+          b: !lambda return b;
+      - delay: 1500ms
+      - logger.log: "Will set light off"
+      - script.execute: led_off_button_left
+
+  - id: led_on_button_middle
+    mode: restart
+    parameters:
+      brightness: float
+      r: float
+      g: float
+      b: float
+    then:    
+      - light.turn_on:
+          transition_length: 0ms
+          id: leds_button_middle
+          brightness: !lambda return brightness;
+          red: !lambda return r;
+          green: !lambda return g;
+          blue: !lambda return b;
+      - logger.log:
+          format: "Color is %f %f %f - %f"
+          args: [ "r","g","b", "brightness" ]      
+
+  - id: led_flash_button_middle
+    mode: restart
+    parameters:
+      brightness: float
+      r: float
+      g: float
+      b: float
+    then:
+      - logger.log: "Will set light on"
+      - script.execute:
+          id: led_on_button_middle
+          brightness: !lambda return brightness;
+          r: !lambda return r;
+          g: !lambda return g;
+          b: !lambda return b;
+      - delay: 1500ms
+      - logger.log: "Will set light off"
+      - script.execute: led_off_button_middle
+
+  - id: led_on_button_right
+    mode: restart
+    parameters:
+      brightness: float
+      r: float
+      g: float
+      b: float
+    then:    
+      - light.turn_on:
+          transition_length: 0ms
+          id: leds_button_right
+          brightness: !lambda return brightness;
+          red: !lambda return r;
+          green: !lambda return g;
+          blue: !lambda return b;
+      - logger.log:
+          format: "Color is %f %f %f - %f"
+          args: [ "r","g","b", "brightness" ]      
+
+  - id: led_flash_button_right
+    mode: restart
+    parameters:
+      brightness: float
+      r: float
+      g: float
+      b: float
+    then:
+      - logger.log: "Will set light on"
+      - script.execute:
+          id: led_on_button_right
+          brightness: !lambda return brightness;
+          r: !lambda return r;
+          g: !lambda return g;
+          b: !lambda return b;
+      - delay: 1500ms
+      - logger.log: "Will set light off"
+      - script.execute: led_off_button_right
+
+  - id: led_off_button_left
+    mode: restart
+    then:
+      - light.turn_off:
+          id: leds_button_left
+      - logger.log: "Light off"
+
+  - id: led_off_button_middle
+    mode: restart
+    then:
+      - light.turn_off:
+          id: leds_button_middle
+      - logger.log: "Light off"
+
+  - id: led_off_button_right
+    mode: restart
+    then:
+      - light.turn_off:
+          id: leds_button_right
+      - logger.log: "Light off"
+
+  - id: led_on_release
+    mode: restart
+    then:
+#      - light.turn_off:
+#          id: leds_top
+      - script.execute: refresh_led_default
+
+  - id: led_on_touch
+    mode: restart
+    then:
+      - light.turn_on:
+          id: leds_top
+          brightness: ${touch_brightness}
+          red: !lambda "return id(touch_color)[0]/100.0;"
+          green: !lambda "return id(touch_color)[1]/100.0;"
+          blue: !lambda "return id(touch_color)[2]/100.0;"
+          effect: ${touch_effect}
+      - delay: 1500ms
+      - script.execute: refresh_led_default
+
+  - id: led_on_swipe_left
+    mode: restart
+    then:
+      - light.turn_on:
+          id: leds_left
+          brightness: ${swipe_left_brightness}
+          red: !lambda "return id(swipe_left_color)[0]/100.0;"
+          green: !lambda "return id(swipe_left_color)[1]/100.0;"
+          blue: !lambda "return id(swipe_left_color)[2]/100.0;"
+          effect: ${swipe_left_effect}
+      - delay: 1500ms
+      - light.turn_off:
+          id: leds_left
+      - script.execute: refresh_led_default
+
+  - id: led_on_swipe_right
+    mode: restart
+    then:
+      - light.turn_on:
+          id: leds_right
+          brightness: ${swipe_right_brightness}
+          red: !lambda "return id(swipe_right_color)[0]/100.0;"
+          green: !lambda "return id(swipe_right_color)[1]/100.0;"
+          blue: !lambda "return id(swipe_right_color)[2]/100.0;"
+          effect: ${swipe_right_effect}
+      - delay: 1500ms
+      - light.turn_off:
+          id: leds_right
+      - script.execute: refresh_led_default
+
+  - id: led_on_full_touch
+    mode: restart
+    then:
+      - light.turn_on:
+          id: leds_top
+          brightness: ${multi_touch_brightness}
+          red: !lambda "return id(multi_touch_color)[0]/100.0;"
+          green: !lambda "return id(multi_touch_color)[1]/100.0;"
+          blue: !lambda "return id(multi_touch_color)[2]/100.0;"
+          effect: ${multi_touch_effect}
+      - delay: 1500ms
+      - light.turn_off:
+          id: leds_top
+
+  - id: release_all_fields
+    mode: restart
+    then:
+      - binary_sensor.template.publish:
+          id: touchfield_1
+          state: OFF
+      - binary_sensor.template.publish:
+          id: touchfield_2
+          state: OFF
+      - binary_sensor.template.publish:
+          id: touchfield_3
+          state: OFF
+
+  - id: handle_press
+    mode: restart
+    parameters:
+      pos: int
+    then:
+      - if:
+          condition:
+            lambda: "return pos <= 3;"
+          then:
+            - binary_sensor.template.publish:
+                id: touchfield_1
+                state: ON
+          else:
+            - if:
+                condition:
+                  lambda: "return pos <= 7;"
+                then:
+                  - binary_sensor.template.publish:
+                      id: touchfield_2
+                      state: ON
+                else:
+                  - binary_sensor.template.publish:
+                      id: touchfield_3
+                      state: ON
+
